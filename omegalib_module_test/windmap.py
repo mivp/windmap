@@ -6,7 +6,7 @@ from cyclops import *
 from omegaToolkit import *
 
 wm = windmap.initialize()
-wm.init('winddata/windmap.ini')
+wm.init('winddata/windmap_hi.ini')
 
 # model
 scene = getSceneManager()
