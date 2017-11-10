@@ -26,6 +26,7 @@ namespace windmap {
         glm::vec2   windMin;
         glm::vec2   windMax;
         glm::vec2   windTextureSize;
+        bool        windFilterLinear;
         
         bool        planeXZ;
         glm::dvec3  planeCorner;
@@ -40,7 +41,7 @@ namespace windmap {
         float           dropRateBump;
         
         Option_t(): loaded(false), fadeOpacity(0.996), speedFactor(0.25), dropRate(0.003),
-                    dropRateBump(0.01), planeXZ(true), numParticles(65536)
+                    dropRateBump(0.01), planeXZ(true), numParticles(65536), windFilterLinear(false)
         {}
         
     } Option;
@@ -68,7 +69,6 @@ namespace windmap {
         ColorTexture*   _colorTex;
         FrameBuffer*    _particleStateFB[2];
         FrameBuffer*    _mapFB[2];
-        glm::vec2       _mapSize;
         int             _currentInd;
         
         unsigned int    _vbo;
@@ -79,6 +79,8 @@ namespace windmap {
         glm::dvec3      _planeCorner;
         glm::dvec2      _planeSize;
         float           _mapOpacity;
+
+        unsigned int    _counter;
         
     private:
         void setNumParticles(float numParticles = 65536);

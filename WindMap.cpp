@@ -44,7 +44,7 @@ namespace windmap {
     
     WindMap::WindMap(const char* inifile): _initialized(false), _vbo(0), _drawProgram(0), _updateProgram(0), _screenProgram(0),
                         _currentInd(0), _vboQuad(0), _needUpdateScreenSize(false), _screenWidth(1366), _screenHeight(3072),
-                        _vboPlane(0), _mapOpacity(1.0)
+                        _vboPlane(0), _mapOpacity(1.0), _counter(0)
     {
         cout << "Config file: " << inifile << endl;
         INIReader reader(inifile);
@@ -69,7 +69,10 @@ namespace windmap {
         vector<string> texStrs = strSplit(str);
         assert(texStrs.size() == 2);
         _option.windTextureSize = glm::vec2( ::atof(texStrs[0].c_str()), ::atof(texStrs[1].c_str()) );
-        
+
+        int linear = reader.GetInteger("general", "windFilterLinear", 0);
+        _option.windFilterLinear = linear != 0;
+
         int xz = reader.GetInteger("general", "planeXZ", 1);
         _option.planeXZ = xz != 0;
         
@@ -126,6 +129,7 @@ namespace windmap {
         cout << _option.windMin[0] << " " << _option.windMin[1] << endl;
         cout << _option.windMax[0] << " " << _option.windMax[1] << endl;
         cout << _option.windTextureSize[0] << " " << _option.windTextureSize[1] << endl;
+        cout << _option.windFilterLinear << endl;
         cout << _option.planeXZ << endl;
         cout << _option.planeCorner[0] << " " << _option.planeCorner[1] << " " << _option.planeCorner[2] << endl;
         cout << _option.planeSize[0] << " " << _option.planeSize[1] << endl;
@@ -182,7 +186,6 @@ namespace windmap {
         _windTex = ColorTexture::newFromNextUnit(100, 100);
         _colorTex = ColorTexture::newFromNextUnit(100, 100);
         
-        _mapSize = glm::vec2(4096, 4096);
         vector<string> names;
         names.push_back("tex0");
         
@@ -191,8 +194,8 @@ namespace windmap {
             _particleStateFB[i] = new FrameBuffer(names, 100, 100);
             _particleStateFB[i]->init(offset++, false);
             
-            _mapFB[i] = new FrameBuffer(names, _mapSize[0], _mapSize[1]);
-            _mapFB[i]->init(offset++, true);
+            _mapFB[i] = new FrameBuffer(names, _option.windTextureSize[0], _option.windTextureSize[1]);
+            _mapFB[i]->init(offset++, _option.windFilterLinear, GL_RGBA);
         }
         
         _windTex->update(_option.windFile.c_str());
@@ -273,8 +276,8 @@ namespace windmap {
     }
     
     void WindMap::drawParticles() {
-        glDisable(GL_DEPTH_TEST);
-        glDisable(GL_STENCIL_TEST);
+        //glDisable(GL_DEPTH_TEST);
+        //glDisable(GL_STENCIL_TEST);
         
         _drawProgram->bind();
         _particleStateFB[_currentInd]->getTexture("tex0")->bind();
@@ -300,7 +303,6 @@ namespace windmap {
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         glUseProgram(0);
         glBindTexture(GL_TEXTURE_2D, 0);
-        glEnableVertexAttribArray(0);
     }
     
     void WindMap::drawTexture(ColorTexture* texture, float opacity) {
@@ -315,26 +317,26 @@ namespace windmap {
         glVertexAttribPointer( att,  2, GL_FLOAT, GL_FALSE, sizeof(float), (void*)0);
         
         glDisable(GL_DEPTH_TEST);
-        glDisable(GL_STENCIL_TEST);
+        //glDisable(GL_STENCIL_TEST);
         glDisable(GL_CULL_FACE);
         glDrawArrays(GL_TRIANGLES, 0, 12);
         
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         glUseProgram(0);
         glBindTexture(GL_TEXTURE_2D, 0);
-        glEnableVertexAttribArray(0);
     }
     
     void WindMap::drawScreen() {
         
         // draw previous screen to buffer to create trails
         _mapFB[_currentInd]->bind();
-        _mapFB[_currentInd]->clear();
-        glViewport(0, 0, _mapSize[0], _mapSize[1]);
+        glViewport(0, 0, _option.windTextureSize[0], _option.windTextureSize[1]);
+        glScissor(0, 0, _option.windTextureSize[0], _option.windTextureSize[1]);
+        //_mapFB[_currentInd]->clear();
         
         int prevMap = 1 - _currentInd;
         drawTexture(_mapFB[prevMap]->getTexture("tex0"),_option.fadeOpacity);
-    
+        
         // then draw particle
         drawParticles();
         
@@ -373,6 +375,7 @@ namespace windmap {
         _particleStateFB[nextInd]->bind();
         //_particleStateFB[nextInd]->clear();
         glViewport(0, 0, _particleResolution, _particleResolution);
+        glScissor(0, 0, _particleResolution, _particleResolution);
         
         _updateProgram->bind();
         _windTex->bind();
@@ -382,8 +385,8 @@ namespace windmap {
         
         _updateProgram->setUniform("u_rand_seed", (float)rand() / RAND_MAX);
         _updateProgram->setUniform("u_wind_res", glm::vec2((float)_windTex->getWidth(), (float)_windTex->getHeight()));
-        _updateProgram->setUniform("u_wind_min", glm::vec2(-29.670402832, -29.670402832));
-        _updateProgram->setUniform("u_wind_max", glm::vec2(30.969597168, 30.969597168));
+        _updateProgram->setUniform("u_wind_min", _option.windMin );
+        _updateProgram->setUniform("u_wind_max", _option.windMax ); 
         _updateProgram->setUniform("u_speed_factor", _option.speedFactor );
         _updateProgram->setUniform("u_drop_rate", _option.dropRate );
         _updateProgram->setUniform("u_drop_rate_bump", _option.dropRateBump );
@@ -394,14 +397,13 @@ namespace windmap {
         glVertexAttribPointer( att,  2, GL_FLOAT, GL_FALSE, sizeof(float), (void*)0);
         
         glDisable(GL_DEPTH_TEST);
-        glDisable(GL_STENCIL_TEST);
+        //glDisable(GL_STENCIL_TEST);
         glDisable(GL_CULL_FACE);
         glDrawArrays(GL_TRIANGLES, 0, 12);
         
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         glUseProgram(0);
         glBindTexture(GL_TEXTURE_2D, 0);
-        glEnableVertexAttribArray(0);
        _particleStateFB[nextInd]->unbind();
     }
     
@@ -419,24 +421,45 @@ namespace windmap {
         glEnable(GL_POINT_SPRITE);
         glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
         
+        /*
         drawScreen();
         updateParticles(); // for next draw call
         
         // draw to screen for testing
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glViewport(0, 0, _screenWidth, _screenHeight);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glClearColor(0.3, 0.3, 0.3, 1.0);
+        //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        //glClearColor(0.3, 0.3, 0.3, 1.0);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         
         //drawTexture(_mapFB[_currentInd]->getTexture("tex0"));
         drawMapPlane(_mapFB[_currentInd]->getTexture("tex0"), MV, P);
+        //drawMapPlane(_windTex, MV, P);
         
+        glDisable(GL_BLEND);
+        */
+        if(_counter %2 == 0) {
+            drawScreen();
+            updateParticles();
+        }
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glViewport(0, 0, _screenWidth, _screenHeight);
+        glScissor(0, 0, _screenWidth, _screenHeight);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        drawMapPlane(_mapFB[_currentInd]->getTexture("tex0"), MV, P);
+        //drawMapPlane(_windTex, MV, P);
+
         glDisable(GL_BLEND);
         
         // update buffer index
-        _currentInd = 1 - _currentInd;
+        if(_counter %2 == 0)
+            _currentInd = 1 - _currentInd;
+
+        _counter++;
     }
     
 }; //namespace windmap

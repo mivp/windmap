@@ -39,7 +39,7 @@ void FrameBuffer::clear()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
-void FrameBuffer::init(int textureUnitOffset, bool linearFilter)
+void FrameBuffer::init(int textureUnitOffset, bool linearFilter, unsigned int format)
 {
     glGenFramebuffers(1, &uid);
     glBindFramebuffer(GL_FRAMEBUFFER, uid);
@@ -70,11 +70,20 @@ void FrameBuffer::init(int textureUnitOffset, bool linearFilter)
         ColorTexture::resetUnit(textureUnitOffset);
         for(int i = 0; i < texturesNames.size(); i++)
         {
-            ColorTexture* tex = ColorTexture::newFromNextUnit(width, height, GL_RGBA32F);
+            //ColorTexture* tex = ColorTexture::newFromNextUnit(width, height, GL_RGBA32F);
+            ColorTexture* tex = ColorTexture::newFromNextUnit(width, height, format);
             if(linearFilter)
                 tex->setFilters(GL_LINEAR, GL_LINEAR);
             else
                 tex->setFilters(GL_NEAREST, GL_NEAREST);
+            /*
+            if(format != GL_RGBA32F) {
+                unsigned char* data = new unsigned char[width*height*4];
+                for(int i=0; i < width*height*4; i++)
+                    data[i] = 150;
+                tex->update(data, width, height);
+            }
+            */
             tex->bind();
 
             unsigned int attachment = getAttachementFromIndex(i);

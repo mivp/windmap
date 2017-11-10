@@ -6,7 +6,7 @@ from cyclops import *
 from omegaToolkit import *
 
 wm = windmap.initialize()
-wm.init('data/windmap.ini')
+wm.init('winddata/windmap.ini')
 
 # model
 scene = getSceneManager()
@@ -26,3 +26,5 @@ camori = [-0.94, 0.33, 0.09, 0.04]
 cmd = 'cam.setPosition(Vector3(' + str(campos[0]) + ',' + str(campos[1]) + ',' + str(campos[2]) + ')),' + \
 		'cam.setOrientation(Quaternion(' + str(camori[0]) + ',' + str(camori[1]) + ',' + str(camori[2]) + ',' + str(camori[3]) + '))'
 menu.addButton("Go to camera 1", cmd)
+
+queueCommand(":freefly")

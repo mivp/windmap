@@ -17,6 +17,6 @@ void main() {
 
     gl_FragColor = texture2D(u_color_ramp, ramp_pos);
 
-    if(speed_t < 0.05)
-    	gl_FragColor[3] = 0.5;
+    //if(speed_t < 0.05)
+    //	gl_FragColor[3] = 0.5;
 }

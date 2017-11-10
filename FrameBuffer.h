@@ -21,7 +21,7 @@ public:
     ~FrameBuffer();
 
     void clear();
-    void init(int textureUnitOffset = 0, bool linearFilter = false);
+    void init(int textureUnitOffset = 0, bool linearFilter = false, unsigned int format = GL_RGBA32F );
     void bind();
     void unbind();
     void resize(unsigned int _width, unsigned int _height);
