@@ -10,6 +10,7 @@ varying vec2 v_particle_pos;
 void main() {
     vec2 velocity = mix(u_wind_min, u_wind_max, texture2D(u_wind, v_particle_pos).rg);
     float speed_t = length(velocity) / length(u_wind_max);
+    speed_t = clamp(speed_t, 0.001, 0.999);
 
     // color ramp is encoded in a 16x16 texture
     //vec2 ramp_pos = vec2( fract(16.0 * speed_t), floor(16.0 * speed_t) / 16.0);

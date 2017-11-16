@@ -94,7 +94,7 @@ void init_resources() {
     camera->Update();
     
     // windmap
-    wind = new WindMap("data/windmap.ini");
+    wind = new WindMap("winddata/windmap_southwest.ini");
     wind->printOption();
     wind->setScreenSize(2*WIDTH, 2*HEIGHT);
 }
