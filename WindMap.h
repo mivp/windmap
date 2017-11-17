@@ -64,6 +64,7 @@ namespace windmap {
         GLSLProgram* _updateProgram;
         GLSLProgram* _screenProgram;
         GLSLProgram* _meshProgram;
+        GLSLProgram* _pointProgram;
         
         ColorTexture*   _windTex;
         ColorTexture*   _colorTex;
@@ -91,6 +92,7 @@ namespace windmap {
         void updateParticles();
         void drawTexture(ColorTexture* texture, float opacity = 1.0);
         void drawMapPlane(ColorTexture* texture, const float MV[16], const float P[16]);
+        void drawPoints(const float MV[16], const float P[16]);
 
     public:
         WindMap(const char* inifile);

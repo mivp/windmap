@@ -44,7 +44,7 @@ namespace windmap {
     
     WindMap::WindMap(const char* inifile): _initialized(false), _vbo(0), _drawProgram(0), _updateProgram(0), _screenProgram(0),
                         _currentInd(0), _vboQuad(0), _needUpdateScreenSize(false), _screenWidth(1366), _screenHeight(3072),
-                        _vboPlane(0), _mapOpacity(1.0), _counter(0)
+                        _vboPlane(0), _mapOpacity(1.0), _counter(0), _pointProgram(0)
     {
         cout << "Config file: " << inifile << endl;
         INIReader reader(inifile);
@@ -115,6 +115,8 @@ namespace windmap {
             delete _updateProgram;
         if(_screenProgram)
             delete _screenProgram;
+        if(_pointProgram)
+            delete _pointProgram;
         for(int i=0; i<2; i++) {
             if(_particleStateFB[i])
                 delete _particleStateFB[i];
@@ -180,6 +182,13 @@ namespace windmap {
         filename = shaderDir; filename.append("mesh.frag");
         _meshProgram->compileShader(filename.c_str());
         _meshProgram->link();
+        
+        _pointProgram = new GLSLProgram();
+        filename = shaderDir; filename.append("point.vert");
+        _pointProgram->compileShader(filename.c_str());
+        filename = shaderDir; filename.append("point.frag");
+        _pointProgram->compileShader(filename.c_str());
+        _pointProgram->link();
         
         // textures & framebuffers
         ColorTexture::resetUnit(0);
@@ -370,6 +379,40 @@ namespace windmap {
         glEnableVertexAttribArray(0);
     }
     
+    void WindMap::drawPoints(const float MV[16], const float P[16]) {
+        _pointProgram->bind();
+        _particleStateFB[_currentInd]->getTexture("tex0")->bind();
+        _pointProgram->setUniform("u_particles", (int)_particleStateFB[_currentInd]->getTexture("tex0")->index);
+        _pointProgram->setUniform("u_particles_res", (float)_particleResolution);
+        
+        //_pointProgram->setUniform("u_topleft", glm::vec3(_planeCorner));
+        //_pointProgram->setUniform("u_size", glm::vec2(_planeSize));
+        _pointProgram->setUniform("u_corner", glm::vec3(0.0, 1000.0, 0.0));
+        _pointProgram->setUniform("u_size", glm::vec2(109379.614343, 72919.7428954));
+        _pointProgram->setUniform("u_mv", MV);
+        _pointProgram->setUniform("u_p", P);
+        
+        _windTex->bind();
+        _pointProgram->setUniform("u_wind", (int)_windTex->index);
+        _pointProgram->setUniform("u_wind_min", _option.windMin);
+        _pointProgram->setUniform("u_wind_max", _option.windMax);
+        
+        _colorTex->bind();
+        _pointProgram->setUniform("u_color_ramp", (int)_colorTex->index);
+        
+        glBindBuffer(GL_ARRAY_BUFFER, _vbo);
+        
+        unsigned int att = glGetAttribLocation(_drawProgram->getHandle(), "a_index");
+        glEnableVertexAttribArray(att);
+        glVertexAttribPointer( att,  1, GL_FLOAT, GL_FALSE, sizeof(float), (void*)0);
+        
+        glDrawArrays(GL_POINTS, 0, _numParticles);
+        
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glUseProgram(0);
+        glBindTexture(GL_TEXTURE_2D, 0);
+    }
+    
     void WindMap::updateParticles() {
         int nextInd = 1 - _currentInd;
         _particleStateFB[nextInd]->bind();
@@ -421,24 +464,22 @@ namespace windmap {
         glEnable(GL_POINT_SPRITE);
         glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
         
-        /*
-        drawScreen();
-        updateParticles(); // for next draw call
-        
-        // draw to screen for testing
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glViewport(0, 0, _screenWidth, _screenHeight);
-        //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        //glClearColor(0.3, 0.3, 0.3, 1.0);
+        glScissor(0, 0, _screenWidth, _screenHeight);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         
-        //drawTexture(_mapFB[_currentInd]->getTexture("tex0"));
-        drawMapPlane(_mapFB[_currentInd]->getTexture("tex0"), MV, P);
-        //drawMapPlane(_windTex, MV, P);
+        drawPoints(MV, P);
+        
+        if(_counter %2 == 0) {
+            updateParticles();
+            _currentInd = 1 - _currentInd;
+        }
         
         glDisable(GL_BLEND);
-        */
+        
+        /*
         if(_counter %2 == 0) {
             drawScreen();
             updateParticles();
@@ -458,7 +499,8 @@ namespace windmap {
         // update buffer index
         if(_counter %2 == 0)
             _currentInd = 1 - _currentInd;
-
+        */
+        
         _counter++;
     }
     
